@@ -1,0 +1,24 @@
+# render.yaml
+services:
+  - type: web
+    name: allbypass
+    env: python
+    buildCommand: pip install -r requirements.txt && playwright install chromium
+    startCommand: python run.py
+    envVars:
+      - key: TELEGRAM_TOKEN
+        sync: false          # set manually in dashboard, never committed
+      - key: API_HOST
+        value: 0.0.0.0
+      - key: API_PORT
+        value: 10000
+      - key: API_BASE_URL
+        sync: false          # set to https://your-service.onrender.com
+      - key: WEBHOOK_MODE
+        value: "false"
+      - key: RATE_LIMIT_PER_MIN
+        value: "30"
+      - key: CACHE_TTL_SECONDS
+        value: "3600"
+      - key: CACHE_MAX_SIZE
+        value: "500"
