@@ -1,5 +1,4 @@
 fastapi
-uvicorn[standard]
 python-telegram-bot==21.6
 playwright
 cloudscraper
@@ -12,4 +11,3 @@ cachetools
 asyncio-throttle
 aiohttp
 lxml
-python-3.11.11
