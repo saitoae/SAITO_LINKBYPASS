@@ -2,6 +2,7 @@
 import asyncio
 import time
 from collections import defaultdict
+from typing import Annotated
 
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -17,7 +18,7 @@ app = FastAPI(
     title="🔓 AllBypass API",
     description="Universal link bypass — 25+ sites, CF, DDoS-Guard, captcha auto-solve.",
     version="3.0.0",
-    docs_url="/docs",       # ← was "/" — conflicted with @app.get("/") below
+    docs_url="/docs",
     redoc_url="/redoc",
     openapi_url="/openapi.json",
 )
@@ -79,8 +80,7 @@ async def bypass_post(req: BypassReq, request: Request):
 
 
 @app.get("/bypass")
-async def bypass_get(url: str = Query(...), request: Request):
-    # ← removed `= None` default; Request is always injected by FastAPI
+async def bypass_get(request: Request, url: Annotated[str, Query(...)]):
     ip = request.client.host
     if not check_rate(ip):
         raise HTTPException(429, f"Rate limit: {RATE_LIMIT_PER_MIN} req/min")
@@ -103,8 +103,6 @@ async def batch_bypass(req: BatchReq, request: Request):
             return await run_bypass(url)
 
     results = list(await asyncio.gather(*[_guarded(u) for u in req.urls]))
-    # ↑ list() wrap — asyncio.gather returns a coroutine tuple, JSONResponse
-    # needs a plain list to serialize cleanly
     return JSONResponse({"results": results, "count": len(results)})
 
 
