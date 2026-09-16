@@ -305,35 +305,53 @@ async def inline_handler(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
 # ── Launch ────────────────────────────────────────────────────────────────────
 
-def main():
-    app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
+# replace the main() function in bot/main.py
 
-    app.add_handler(CommandHandler("start",     cmd_start))
-    app.add_handler(CommandHandler("help",      cmd_help))
-    app.add_handler(CommandHandler("about",     cmd_about))
-    app.add_handler(CommandHandler("bypass",    cmd_bypass))
-    app.add_handler(CommandHandler("batch",     cmd_batch))
-    app.add_handler(CommandHandler("supported", cmd_supported))
-    app.add_handler(CommandHandler("stats",     cmd_stats))
-    app.add_handler(CommandHandler("clear",     cmd_clear))
-    app.add_handler(InlineQueryHandler(inline_handler))
-    app.add_handler(MessageHandler(
+def main():
+    import os
+    token = os.getenv("TELEGRAM_TOKEN", "")
+    if not token or "Botfather" in token or len(token) < 20:
+        logger.error(
+            "TELEGRAM_TOKEN missing or placeholder. "
+            "Set it in Render Dashboard → Environment."
+        )
+        return  # exit cleanly, API stays up
+
+    try:
+        application = (
+            ApplicationBuilder()
+            .token(token)
+            .build()
+        )
+    except Exception as e:
+        logger.error(f"Bot init failed: {e}")
+        return
+
+    application.add_handler(CommandHandler("start",     cmd_start))
+    application.add_handler(CommandHandler("help",      cmd_help))
+    application.add_handler(CommandHandler("about",     cmd_about))
+    application.add_handler(CommandHandler("bypass",    cmd_bypass))
+    application.add_handler(CommandHandler("batch",     cmd_batch))
+    application.add_handler(CommandHandler("supported", cmd_supported))
+    application.add_handler(CommandHandler("stats",     cmd_stats))
+    application.add_handler(CommandHandler("clear",     cmd_clear))
+    application.add_handler(InlineQueryHandler(inline_handler))
+    application.add_handler(MessageHandler(
         filters.TEXT & ~filters.COMMAND,
         message_handler,
     ))
 
     if WEBHOOK_MODE and WEBHOOK_URL:
-        logger.info(f"Webhook mode: {WEBHOOK_URL}")
-        app.run_webhook(
+        logger.info(f"[BOT] webhook mode → {WEBHOOK_URL}")
+        application.run_webhook(
             listen="0.0.0.0",
             port=8443,
             webhook_url=WEBHOOK_URL,
             allowed_updates=Update.ALL_TYPES,
         )
     else:
-        logger.info("Polling mode — 6767")
-        app.run_polling(allowed_updates=Update.ALL_TYPES)
-
-
-if __name__ == "__main__":
-    main()
+        logger.info("[BOT] polling mode 6767")
+        application.run_polling(
+            allowed_updates=Update.ALL_TYPES,
+            drop_pending_updates=True,
+        )
