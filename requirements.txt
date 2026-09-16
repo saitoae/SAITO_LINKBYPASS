@@ -1,0 +1,14 @@
+fastapi
+uvicorn[standard]
+python-telegram-bot==20.7
+playwright
+cloudscraper
+httpx
+beautifulsoup4
+fake-useragent
+pydantic
+python-dotenv
+cachetools
+asyncio-throttle
+aiohttp
+lxml
