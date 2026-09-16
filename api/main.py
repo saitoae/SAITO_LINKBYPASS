@@ -1,11 +1,7 @@
 # api/main.py
-"""
-FastAPI — REST endpoints with per-IP rate limiting.
-"""
 import asyncio
 import time
 from collections import defaultdict
-from typing import Optional
 
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -21,8 +17,9 @@ app = FastAPI(
     title="🔓 AllBypass API",
     description="Universal link bypass — 25+ sites, CF, DDoS-Guard, captcha auto-solve.",
     version="3.0.0",
-    docs_url="/",
-    redoc_url="/docs",
+    docs_url="/docs",       # ← was "/" — conflicted with @app.get("/") below
+    redoc_url="/redoc",
+    openapi_url="/openapi.json",
 )
 
 app.add_middleware(
@@ -57,6 +54,21 @@ class BatchReq(BaseModel):
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
 
+@app.get("/")
+async def root():
+    return {
+        "status": "AllBypass API v3",
+        "docs": "/docs",
+        "supported_sites": len(SUPPORTED_SITES),
+        "sig": "6767",
+    }
+
+
+@app.get("/health")
+async def health():
+    return {"status": "alive", "version": "3.0.0"}
+
+
 @app.post("/bypass")
 async def bypass_post(req: BypassReq, request: Request):
     ip = request.client.host
@@ -67,8 +79,9 @@ async def bypass_post(req: BypassReq, request: Request):
 
 
 @app.get("/bypass")
-async def bypass_get(url: str = Query(...), request: Request = None):
-    ip = request.client.host if request else "unknown"
+async def bypass_get(url: str = Query(...), request: Request):
+    # ← removed `= None` default; Request is always injected by FastAPI
+    ip = request.client.host
     if not check_rate(ip):
         raise HTTPException(429, f"Rate limit: {RATE_LIMIT_PER_MIN} req/min")
     result = await run_bypass(url)
@@ -85,11 +98,13 @@ async def batch_bypass(req: BatchReq, request: Request):
 
     sem = asyncio.Semaphore(min(req.max_concurrent, 5))
 
-    async def _guarded(url):
+    async def _guarded(url: str):
         async with sem:
             return await run_bypass(url)
 
-    results = await asyncio.gather(*[_guarded(u) for u in req.urls])
+    results = list(await asyncio.gather(*[_guarded(u) for u in req.urls]))
+    # ↑ list() wrap — asyncio.gather returns a coroutine tuple, JSONResponse
+    # needs a plain list to serialize cleanly
     return JSONResponse({"results": results, "count": len(results)})
 
 
@@ -105,13 +120,7 @@ async def cache_stats():
 
 @app.delete("/cache/clear")
 async def cache_clear(admin_key: str = Query(...)):
-    # Simple admin key check — match first admin ID as string
     if str(admin_key) not in [str(i) for i in ADMIN_IDS]:
         raise HTTPException(403, "Unauthorized")
     cache.clear()
     return {"status": "cleared"}
-
-
-@app.get("/health")
-async def health():
-    return {"status": "alive", "version": "3.0.0", "sig": "6767"}
